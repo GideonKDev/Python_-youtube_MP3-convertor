@@ -36,18 +36,14 @@ The project emphasizes usability, modular design, and compliance awareness, and 
 1. Install Python from https://www.python.org
 2. Install FFmpeg from https://ffmpeg.org
 3. Clone the repository:
-   ```bash
+   
    git clone https://github.com/GideonKDev/Python_-youtube_MP3-convertor.git
    cd Python_-youtube_MP3-convertor
-Install required dependencies:
+4. Install required dependencies:
 
-bash
-Copy code
-pip install -r requirements.txt
-Launch the application:
-
-bash
-Copy code
+    pip install -r requirements.txt
+5. Launch the application:
+    
 python run.py
 Method 2: Standalone Executable
 Download the latest release from the GitHub Releases page
