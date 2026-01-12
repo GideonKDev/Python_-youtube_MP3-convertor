@@ -75,6 +75,9 @@ To generate your own standalone Windows executable:
 python create_exe.py
 
 ```
+*After running `python create_exe.py`, the built executable can be found in the project's `dist/` directory.*
+
+
 ## Legal Disclaimer & Copyright Notice
 
 ### **Important Legal Information**
@@ -149,4 +152,4 @@ Copyright laws vary by country/region. Familiarize yourself with:
 
 **By using this software, you certify that you will only download content you have explicit rights to, and accept full responsibility for your actions.**
 
-*After running `python create_exe.py`, the built executable can be found in the project's `dist/` directory.*
+
