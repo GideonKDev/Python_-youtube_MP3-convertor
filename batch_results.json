@@ -1,7 +1,20 @@
 [
   {
-    "success": false,
-    "error": "string indices must be integers, not 'str'",
-    "url": "https://youtu.be/PQVWiAtNX58"
+    "success": true,
+    "filename": "C:\\Users\\User\\Desktop\\youtube to mp3\\downloads\\Bridget Blue - Nairobi streets (live performance with @cedo3246 ).mp3",
+    "title": "Bridget Blue - Nairobi streets  (live performance with @cedo3246 )",
+    "url": "https://youtu.be/J7krmKq-PNc"
+  },
+  {
+    "success": true,
+    "filename": "C:\\Users\\User\\Desktop\\youtube to mp3\\downloads\\Omah Lay - i'm a mess (Official Music Video).mp3",
+    "title": "Omah Lay - i'm a mess (Official Music Video)",
+    "url": "https://youtu.be/iOGJ76ct8G8"
+  },
+  {
+    "success": true,
+    "filename": "C:\\Users\\User\\Desktop\\youtube to mp3\\downloads\\Bridget Blue & Bien - I Choose You (Official Lyric Video).mp3",
+    "title": "Bridget Blue & Bien - I Choose You (Official Lyric Video)",
+    "url": "https://youtu.be/-Yv9MRa28dY"
   }
 ]
