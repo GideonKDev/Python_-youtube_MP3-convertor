@@ -6,8 +6,182 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
 import os
 import time
-from converter import youtube_to_mp3, get_video_info, batch_download
-from batch_processor import read_urls_from_file, save_batch_results, validate_urls
+
+# Install yt-dlp if missing
+import subprocess
+import sys
+
+def install_requirements():
+    """Install required packages if missing"""
+    required = ['yt-dlp']
+    for package in required:
+        try:
+            __import__(package.replace('-', '_'))
+        except ImportError:
+            print(f"Installing {package}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+install_requirements()
+
+# Now import yt_dlp
+import yt_dlp
+
+# ===========================================
+# SIMPLE WORKING CONVERTER FUNCTIONS
+# ===========================================
+
+def clean_filename(filename, max_length=200):
+    """Remove invalid characters from filename"""
+    import re
+    invalid_chars = '<>:"/\\|?*'
+    for char in invalid_chars:
+        filename = filename.replace(char, '')
+    filename = re.sub(r'\s+', ' ', filename)
+    if len(filename) > max_length:
+        name, ext = os.path.splitext(filename)
+        filename = name[:max_length-len(ext)] + ext
+    return filename.strip()
+
+def get_video_info(url):
+    """Get video information without downloading - SIMPLE VERSION"""
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'skip_download': True,
+    }
+    
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            # ALWAYS return a dict
+            return {
+                'title': info.get('title', 'Unknown'),
+                'duration': info.get('duration', 0),
+                'uploader': info.get('uploader', 'Unknown'),
+                'thumbnail': info.get('thumbnail', ''),
+                'view_count': info.get('view_count', 0),
+            }
+    except Exception as e:
+        # ALWAYS return a dict, not a string
+        return {'error': str(e)}
+
+def youtube_to_mp3(url, output_folder="downloads", quality='192'):
+    """
+    SIMPLE WORKING VERSION of YouTube to MP3 converter
+    This matches your working code
+    """
+    os.makedirs(output_folder, exist_ok=True)
+    
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': os.path.join(output_folder, '%(title)s.%(ext)s'),
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': quality,
+        }],
+        'quiet': True,
+        'keepvideo': False,
+        'writethumbnail': False,
+    }
+    
+    # ADD FFMPEG PATH HERE - This is the critical fix
+    ffmpeg_path = r"C:\Users\User\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin"
+    
+    if os.path.exists(os.path.join(ffmpeg_path, "ffmpeg.exe")):
+        ydl_opts['ffmpeg_location'] = ffmpeg_path
+        print(f"Using FFmpeg from: {ffmpeg_path}")
+    else:
+        print(f"Warning: FFmpeg not found at: {ffmpeg_path}")
+    
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            title = info.get('title', 'audio_download')
+            filename = os.path.join(output_folder, f"{clean_filename(title)}.mp3")
+            
+            return {
+                'success': True,
+                'filename': filename,
+                'title': title,
+                'url': url
+            }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'url': url
+        }
+def batch_download(urls, output_folder="downloads", quality='192'):
+    """
+    Simple batch download
+    """
+    results = []
+    total = len(urls)
+    
+    for i, url in enumerate(urls, 1):
+        try:
+            print(f"[{i}/{total}] Processing: {url[:50]}...")
+            result = youtube_to_mp3(url, output_folder, quality)
+            results.append(result)
+            
+            if isinstance(result, dict) and result.get('success'):
+                print(f"    ✓ Success: {result.get('title', 'Unknown')}")
+            else:
+                error_msg = result.get('error', 'Unknown error') if isinstance(result, dict) else str(result)
+                print(f"    ✗ Failed: {error_msg}")
+                
+        except Exception as e:
+            results.append({'success': False, 'error': str(e), 'url': url})
+            print(f"    ✗ Error: {e}")
+    
+    return results
+
+# ===========================================
+# BATCH PROCESSOR FUNCTIONS
+# ===========================================
+
+def read_urls_from_file(filepath):
+    """Read URLs from text file"""
+    urls = []
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    urls.append(line)
+        return urls
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        return []
+
+def save_batch_results(results, output_file="batch_results.json"):
+    """Save batch download results to JSON file"""
+    import json
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Error saving results: {e}")
+        return False
+
+def validate_urls(urls):
+    """Validate YouTube URLs"""
+    validated = []
+    invalid = []
+    
+    for url in urls:
+        if 'youtube.com/watch' in url or 'youtu.be/' in url:
+            validated.append(url)
+        else:
+            invalid.append(url)
+    
+    return validated, invalid
+
+# ===========================================
+# GUI APPLICATION
+# ===========================================
 
 class YouTubeToMP3Converter:
     def __init__(self):
@@ -15,12 +189,6 @@ class YouTubeToMP3Converter:
         self.window.title("YouTube to MP3 Converter Pro")
         self.window.geometry("800x600")
         self.window.configure(bg="#f0f0f0")
-        
-        # Set icon (if available)
-        try:
-            self.window.iconbitmap('assets/icon.ico')
-        except:
-            pass
         
         # Variables
         self.output_folder = tk.StringVar(value=os.path.join(os.getcwd(), "downloads"))
@@ -34,7 +202,7 @@ class YouTubeToMP3Converter:
         title_frame = tk.Frame(self.window, bg="#f0f0f0")
         title_frame.pack(pady=20)
         
-        tk.Label(title_frame, text="🎵 YouTube to MP3 Converter", 
+        tk.Label(title_frame, text="YouTube to MP3 Converter", 
                 font=("Arial", 20, "bold"), bg="#f0f0f0").pack()
         tk.Label(title_frame, text="Convert YouTube videos to MP3 audio files", 
                 font=("Arial", 10), bg="#f0f0f0", fg="#666").pack()
@@ -139,12 +307,6 @@ class YouTubeToMP3Converter:
         self.status_text.config(state="disabled")
         self.window.update()
     
-    def safe_get(self, obj, key, default=None):
-        """Safely get value from object that might be dict or other type"""
-        if isinstance(obj, dict):
-            return obj.get(key, default)
-        return default
-    
     def select_folder(self):
         folder = filedialog.askdirectory()
         if folder:
@@ -199,54 +361,38 @@ class YouTubeToMP3Converter:
             # Get video info first
             info = get_video_info(url)
             
-            # Check if info retrieval failed
-            if isinstance(info, str):
-                # info is a string error message
-                self.log_message(f"Error: {info}", "red")
-                return
-            
+            # Check if info is valid
             if isinstance(info, dict) and 'error' in info:
-                # info is a dict with error key
                 self.log_message(f"Error: {info['error']}", "red")
                 return
             
-            # Ensure info is a dictionary before accessing
-            if not isinstance(info, dict):
-                self.log_message(f"Error: Unexpected response format", "red")
-                return
+            if isinstance(info, dict):
+                title = info.get('title', 'Unknown Video')
+                self.log_message(f"Title: {title}", "green")
             
-            # Now safe to access info as dict
-            title = self.safe_get(info, 'title', 'Unknown Video')
-            self.log_message(f"Title: {title}", "green")
-            
-            # Download
+            # Download - USING THE SIMPLE WORKING VERSION
             result = youtube_to_mp3(
                 url, 
                 self.output_folder.get(), 
                 self.quality.get()
             )
             
-            # Handle result safely
-            if isinstance(result, dict):
-                if self.safe_get(result, 'success'):
-                    filename = self.safe_get(result, 'filename', 'Unknown')
-                    title = self.safe_get(result, 'title', 'Unknown')
-                    
-                    self.log_message(f"✓ Download complete: {filename}", "green")
-                    
-                    # Show success message
-                    self.window.after(0, lambda: messagebox.showinfo(
-                        "Success", 
-                        f"Download complete!\n\n"
-                        f"Title: {title}\n"
-                        f"Saved to: {filename}"
-                    ))
-                else:
-                    error_msg = self.safe_get(result, 'error', 'Unknown error')
-                    self.log_message(f"✗ Download failed: {error_msg}", "red")
+            # SAFELY check result - result is ALWAYS a dict from our simple version
+            if result.get('success'):
+                filename = result.get('filename', 'Unknown')
+                title = result.get('title', 'Unknown')
+                self.log_message(f"✓ Download complete: {filename}", "green")
+                
+                # Show success message
+                self.window.after(0, lambda: messagebox.showinfo(
+                    "Success", 
+                    f"Download complete!\n\n"
+                    f"Title: {title}\n"
+                    f"Saved to: {filename}"
+                ))
             else:
-                # result is not a dictionary
-                self.log_message(f"✗ Download failed: {result}", "red")
+                error_msg = result.get('error', 'Unknown error')
+                self.log_message(f"✗ Download failed: {error_msg}", "red")
                 
         except Exception as e:
             self.log_message(f"✗ Error: {str(e)}", "red")
@@ -303,10 +449,10 @@ class YouTubeToMP3Converter:
                 self.quality.get()
             )
             
-            # Count successes - safely check each result
+            # Count successes
             successes = 0
             for r in results:
-                if isinstance(r, dict) and self.safe_get(r, 'success', False):
+                if isinstance(r, dict) and r.get('success'):
                     successes += 1
             failures = len(urls) - successes
             
@@ -314,10 +460,8 @@ class YouTubeToMP3Converter:
                            "green" if failures == 0 else "orange")
             
             # Save results
-            if save_batch_results(results, "batch_results.json"):
-                self.log_message("Results saved to batch_results.json", "blue")
-            else:
-                self.log_message("Failed to save results", "orange")
+            save_batch_results(results, "batch_results.json")
+            self.log_message("Results saved to batch_results.json", "blue")
             
             # Show summary
             self.window.after(0, lambda: messagebox.showinfo(
@@ -340,7 +484,17 @@ class YouTubeToMP3Converter:
         self.status_text.tag_config("red", foreground="red")
         self.status_text.tag_config("orange", foreground="orange")
         
+        # Check for FFmpeg - IMPROVED VERSION
+        ffmpeg_path = r"C:\Users\User\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin\ffmpeg.exe"
+        
+        if os.path.exists(ffmpeg_path):
+            self.log_message(f"✓ FFmpeg found: {ffmpeg_path}", "green")
+        else:
+            self.log_message("✗ FFmpeg not found at expected location", "red")
+            self.log_message("Please ensure FFmpeg is installed", "red")
+        
         self.window.mainloop()
+    
 
 def main():
     """Main entry point"""
