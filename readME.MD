@@ -47,8 +47,10 @@ A Python-based desktop application designed to convert YouTube videos into high-
 ### Method 2: Standalone Executable
 1.  Download the latest release from the **GitHub Releases** page.
 2.  Extract the downloaded ZIP file.
-3.  Run `YouTube2MP3_Converter.exe`.
-4.  *Note: Ensure FFmpeg is installed and accessible via system PATH.*
+3.  open the dist folder
+4.  Run `YouTube2MP3.exe`.
+5.  *Note: Ensure FFmpeg is installed and accessible via system PATH.*
+6.  Run the 'create_shortcut' as administrator to create a shortcut on your PC
 
 *After building the executable yourself (e.g., using `python create_exe.py`), the generated executable will be located in the `dist/` directory of the project.*
 
