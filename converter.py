@@ -89,6 +89,11 @@ def youtube_to_mp3(url, output_folder="downloads", quality='192', add_metadata=T
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             # Get info first to clean filename
             info = ydl.extract_info(url, download=False)
+            
+            # Check if info is valid
+            if not info:
+                return {'success': False, 'error': 'Could not retrieve video information', 'url': url}
+            
             title = clean_filename(info.get('title', 'audio_download'))
             
             # Set cleaned filename
@@ -105,6 +110,7 @@ def youtube_to_mp3(url, output_folder="downloads", quality='192', add_metadata=T
                     'filename': mp3_file,
                     'title': info.get('title', 'Unknown'),
                     'size': os.path.getsize(mp3_file) if os.path.exists(mp3_file) else 0,
+                    'url': url
                 }
             else:
                 # Check for other possible names
@@ -114,12 +120,18 @@ def youtube_to_mp3(url, output_folder="downloads", quality='192', add_metadata=T
                             'success': True,
                             'filename': os.path.join(output_folder, file),
                             'title': info.get('title', 'Unknown'),
+                            'url': url
                         }
                 
-                return {'success': False, 'error': 'MP3 file not found after conversion'}
+                return {
+                    'success': False, 
+                    'error': 'MP3 file not found after conversion', 
+                    'url': url,
+                    'title': info.get('title', 'Unknown')
+                }
                 
     except Exception as e:
-        return {'success': False, 'error': str(e)}
+        return {'success': False, 'error': str(e), 'url': url}
 
 def batch_download(urls, output_folder="downloads", quality='192'):
     """

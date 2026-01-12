@@ -1,0 +1,18 @@
+yt-dl==2024.4.9
+# For GUI only (tkinter comes with Python)
+# No additional requirements needed for GUI
+Pillow==9.5.0
+# For video processing (optional)
+moviepy==1.0.3
+# For audio processing (optional)
+pydub==0.25.1
+# For handling various video formats (optional)
+ffmpeg-python==0.2.0
+# For better performance with downloads (optional)
+aria2p==0.8.3
+# For subtitles handling (optional)
+pysrt==1.1.2
+# For improved networking (optional)
+requests==2.31.0
+# For progress bar display (optional)
+tqdm==4.65.0

@@ -139,6 +139,12 @@ class YouTubeToMP3Converter:
         self.status_text.config(state="disabled")
         self.window.update()
     
+    def safe_get(self, obj, key, default=None):
+        """Safely get value from object that might be dict or other type"""
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        return default
+    
     def select_folder(self):
         folder = filedialog.askdirectory()
         if folder:
@@ -192,11 +198,26 @@ class YouTubeToMP3Converter:
             
             # Get video info first
             info = get_video_info(url)
-            if 'error' in info:
+            
+            # Check if info retrieval failed
+            if isinstance(info, str):
+                # info is a string error message
+                self.log_message(f"Error: {info}", "red")
+                return
+            
+            if isinstance(info, dict) and 'error' in info:
+                # info is a dict with error key
                 self.log_message(f"Error: {info['error']}", "red")
                 return
             
-            self.log_message(f"Title: {info['title']}", "green")
+            # Ensure info is a dictionary before accessing
+            if not isinstance(info, dict):
+                self.log_message(f"Error: Unexpected response format", "red")
+                return
+            
+            # Now safe to access info as dict
+            title = self.safe_get(info, 'title', 'Unknown Video')
+            self.log_message(f"Title: {title}", "green")
             
             # Download
             result = youtube_to_mp3(
@@ -205,18 +226,27 @@ class YouTubeToMP3Converter:
                 self.quality.get()
             )
             
-            if result['success']:
-                self.log_message(f"✓ Download complete: {result['filename']}", "green")
-                
-                # Show success message
-                self.window.after(0, lambda: messagebox.showinfo(
-                    "Success", 
-                    f"Download complete!\n\n"
-                    f"Title: {result['title']}\n"
-                    f"Saved to: {result['filename']}"
-                ))
+            # Handle result safely
+            if isinstance(result, dict):
+                if self.safe_get(result, 'success'):
+                    filename = self.safe_get(result, 'filename', 'Unknown')
+                    title = self.safe_get(result, 'title', 'Unknown')
+                    
+                    self.log_message(f"✓ Download complete: {filename}", "green")
+                    
+                    # Show success message
+                    self.window.after(0, lambda: messagebox.showinfo(
+                        "Success", 
+                        f"Download complete!\n\n"
+                        f"Title: {title}\n"
+                        f"Saved to: {filename}"
+                    ))
+                else:
+                    error_msg = self.safe_get(result, 'error', 'Unknown error')
+                    self.log_message(f"✗ Download failed: {error_msg}", "red")
             else:
-                self.log_message(f"✗ Download failed: {result.get('error', 'Unknown error')}", "red")
+                # result is not a dictionary
+                self.log_message(f"✗ Download failed: {result}", "red")
                 
         except Exception as e:
             self.log_message(f"✗ Error: {str(e)}", "red")
@@ -273,16 +303,21 @@ class YouTubeToMP3Converter:
                 self.quality.get()
             )
             
-            # Count successes
-            successes = sum(1 for r in results if r.get('success', False))
+            # Count successes - safely check each result
+            successes = 0
+            for r in results:
+                if isinstance(r, dict) and self.safe_get(r, 'success', False):
+                    successes += 1
             failures = len(urls) - successes
             
             self.log_message(f"Batch complete: {successes} succeeded, {failures} failed", 
                            "green" if failures == 0 else "orange")
             
             # Save results
-            save_batch_results(results, "batch_results.json")
-            self.log_message("Results saved to batch_results.json", "blue")
+            if save_batch_results(results, "batch_results.json"):
+                self.log_message("Results saved to batch_results.json", "blue")
+            else:
+                self.log_message("Failed to save results", "orange")
             
             # Show summary
             self.window.after(0, lambda: messagebox.showinfo(
