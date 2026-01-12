@@ -1,6 +1,6 @@
 # YouTube to MP3 Converter
 
-A Python-based desktop application designed to convert YouTube videos into high-quality MP3 audio files. This tool provides a clean graphical user interface (GUI) and supports both single and batch downloads.
+A Python-based desktop application designed to convert YouTube videos into high-quality MP3 audio files. This tool provides a clean graphical user interface (GUI) and supports both single and batch do[...]
 
 ---
 
@@ -50,6 +50,8 @@ A Python-based desktop application designed to convert YouTube videos into high-
 3.  Run `YouTube2MP3_Converter.exe`.
 4.  *Note: Ensure FFmpeg is installed and accessible via system PATH.*
 
+*After building the executable yourself (e.g., using `python create_exe.py`), the generated executable will be located in the `dist/` directory of the project.*
+
 ---
 
 ## Usage Guidelines
@@ -69,3 +71,7 @@ A Python-based desktop application designed to convert YouTube videos into high-
 To generate your own standalone Windows executable:
 ```bash
 python create_exe.py
+
+```
+
+*After running `python create_exe.py`, the built executable can be found in the project's `dist/` directory.*
