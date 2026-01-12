@@ -15,7 +15,7 @@ def youtube_to_mp3(url, output_path="audio.mp3"):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
         
-# Create a software that converts YouTube links to mp3 audio
+
 if __name__ == "__main__":
     youtube_url = input("Enter the YouTube URL: ")
     output_file = input("Enter the output file name (default: audio.mp3): ") or "audio.mp3"
