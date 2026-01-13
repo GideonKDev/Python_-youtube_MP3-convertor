@@ -37,7 +37,7 @@ def youtube_to_mp3(url, output_folder="mp3_downloads"):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            print(f"Downloaded: {info.get('title', 'Unknown')}")n
+            print(f"Downloaded: {info.get('title', 'Unknown')}")
             print(f"Saved to: {output_folder}")
     except Exception as e:
         print(f"Error: {e}")

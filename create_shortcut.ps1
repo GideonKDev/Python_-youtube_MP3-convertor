@@ -1,6 +1,6 @@
 # create_shortcut.ps1
-$exePath = ".\dist\YouTube2MP3.exe"
-$shortcutPath = "$env:USERPROFILE\Desktop\YouTube to MP3 Converter.lnk"
+$exePath = ".\dist\YouTubeConverter.exe"
+$shortcutPath = "$env:USERPROFILE\Desktop\YouTube Converter.lnk"
 
 if (Test-Path $exePath) {
     # Create shortcut

@@ -1,5 +1,5 @@
 """
-main.py - Complete YouTube to MP3 Converter GUI
+main.py - Complete YouTube to MP3/MP4 Converter GUI
 """
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
@@ -67,8 +67,7 @@ def get_video_info(url):
 
 def youtube_to_mp3(url, output_folder="downloads", quality='192'):
     """
-    SIMPLE WORKING VERSION of YouTube to MP3 converter
-    This matches your working code
+    Convert YouTube video to MP3
     """
     os.makedirs(output_folder, exist_ok=True)
     
@@ -85,14 +84,10 @@ def youtube_to_mp3(url, output_folder="downloads", quality='192'):
         'writethumbnail': False,
     }
     
-    # ADD FFMPEG PATH HERE - This is the critical fix
-    ffmpeg_path = r"C:\Users\User\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin"
-    
-    if os.path.exists(os.path.join(ffmpeg_path, "ffmpeg.exe")):
-        ydl_opts['ffmpeg_location'] = ffmpeg_path
-        print(f"Using FFmpeg from: {ffmpeg_path}")
-    else:
-        print(f"Warning: FFmpeg not found at: {ffmpeg_path}")
+    # ADD FFMPEG LOCATION
+    ffmpeg_dir = r"C:\Users\User\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin"
+    if os.path.exists(os.path.join(ffmpeg_dir, "ffmpeg.exe")):
+        ydl_opts['ffmpeg_location'] = ffmpeg_dir
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -104,6 +99,8 @@ def youtube_to_mp3(url, output_folder="downloads", quality='192'):
                 'success': True,
                 'filename': filename,
                 'title': title,
+                'format': 'MP3',
+                'quality': f'{quality}kbps',
                 'url': url
             }
     except Exception as e:
@@ -112,7 +109,69 @@ def youtube_to_mp3(url, output_folder="downloads", quality='192'):
             'error': str(e),
             'url': url
         }
-def batch_download(urls, output_folder="downloads", quality='192'):
+
+def youtube_to_mp4(url, output_folder="downloads", quality='best'):
+    """
+    Convert YouTube video to MP4
+    """
+    os.makedirs(output_folder, exist_ok=True)
+    
+    # Quality mapping
+    quality_map = {
+        '360p': 'bestvideo[height<=360]+bestaudio/best[height<=360]',
+        '480p': 'bestvideo[height<=480]+bestaudio/best[height<=480]',
+        '720p': 'bestvideo[height<=720]+bestaudio/best[height<=720]',
+        '1080p': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]',
+        'best': 'bestvideo+bestaudio/best',
+    }
+    
+    format_string = quality_map.get(quality, 'bestvideo+bestaudio/best')
+    
+    ydl_opts = {
+        'format': format_string,
+        'outtmpl': os.path.join(output_folder, '%(title)s.%(ext)s'),
+        'merge_output_format': 'mp4',
+        'quiet': True,
+        'writethumbnail': False,
+    }
+    
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            title = info.get('title', 'video_download')
+            filename = os.path.join(output_folder, f"{clean_filename(title)}.mp4")
+            
+            return {
+                'success': True,
+                'filename': filename,
+                'title': title,
+                'format': 'MP4',
+                'quality': quality,
+                'url': url
+            }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'url': url
+        }
+
+def download_youtube(url, output_folder="downloads", format_type='mp3', quality='192'):
+    """
+    Unified download function for MP3 or MP4
+    """
+    if format_type.lower() == 'mp3':
+        return youtube_to_mp3(url, output_folder, quality)
+    elif format_type.lower() == 'mp4':
+        return youtube_to_mp4(url, output_folder, quality)
+    else:
+        return {
+            'success': False,
+            'error': f'Unknown format: {format_type}',
+            'url': url
+        }
+
+def batch_download(urls, output_folder="downloads", format_type='mp3', quality='192'):
     """
     Simple batch download
     """
@@ -122,11 +181,11 @@ def batch_download(urls, output_folder="downloads", quality='192'):
     for i, url in enumerate(urls, 1):
         try:
             print(f"[{i}/{total}] Processing: {url[:50]}...")
-            result = youtube_to_mp3(url, output_folder, quality)
+            result = download_youtube(url, output_folder, format_type, quality)
             results.append(result)
             
             if isinstance(result, dict) and result.get('success'):
-                print(f"    ✓ Success: {result.get('title', 'Unknown')}")
+                print(f"    ✓ Success: {result.get('title', 'Unknown')} ({result.get('format', 'Unknown')})")
             else:
                 error_msg = result.get('error', 'Unknown error') if isinstance(result, dict) else str(result)
                 print(f"    ✗ Failed: {error_msg}")
@@ -183,16 +242,18 @@ def validate_urls(urls):
 # GUI APPLICATION
 # ===========================================
 
-class YouTubeToMP3Converter:
+class YouTubeConverter:
     def __init__(self):
         self.window = tk.Tk()
-        self.window.title("YouTube to MP3 Converter Pro")
-        self.window.geometry("800x600")
+        self.window.title("YouTube to MP3/MP4 Converter Pro")
+        self.window.geometry("900x650")
         self.window.configure(bg="#f0f0f0")
         
         # Variables
         self.output_folder = tk.StringVar(value=os.path.join(os.getcwd(), "downloads"))
-        self.quality = tk.StringVar(value="192")
+        self.format_type = tk.StringVar(value="mp3")
+        self.mp3_quality = tk.StringVar(value="192")
+        self.mp4_quality = tk.StringVar(value="720p")
         self.downloading = False
         
         self.setup_ui()
@@ -202,9 +263,9 @@ class YouTubeToMP3Converter:
         title_frame = tk.Frame(self.window, bg="#f0f0f0")
         title_frame.pack(pady=20)
         
-        tk.Label(title_frame, text="YouTube to MP3 Converter", 
+        tk.Label(title_frame, text="YouTube to MP3/MP4 Converter", 
                 font=("Arial", 20, "bold"), bg="#f0f0f0").pack()
-        tk.Label(title_frame, text="Convert YouTube videos to MP3 audio files", 
+        tk.Label(title_frame, text="Download YouTube videos as MP3 audio or MP4 video", 
                 font=("Arial", 10), bg="#f0f0f0", fg="#666").pack()
         
         # Main container
@@ -222,21 +283,25 @@ class YouTubeToMP3Converter:
         self.url_entry = tk.Entry(left_panel, width=40, font=("Arial", 10))
         self.url_entry.pack(fill="x", pady=(0, 10))
         
-        # Quality selection
-        tk.Label(left_panel, text="Audio Quality:", bg="#f0f0f0", 
+        # Format selection
+        tk.Label(left_panel, text="Download Format:", bg="#f0f0f0", 
                 font=("Arial", 10)).pack(anchor="w", pady=(0, 5))
         
-        quality_frame = tk.Frame(left_panel, bg="#f0f0f0")
-        quality_frame.pack(fill="x", pady=(0, 10))
+        format_frame = tk.Frame(left_panel, bg="#f0f0f0")
+        format_frame.pack(fill="x", pady=(0, 10))
         
-        qualities = [("128 kbps (Small)", "128"), 
-                    ("192 kbps (Recommended)", "192"), 
-                    ("320 kbps (High)", "320")]
-        
-        for text, value in qualities:
-            rb = tk.Radiobutton(quality_frame, text=text, variable=self.quality, 
-                               value=value, bg="#f0f0f0")
+        formats = [("MP3 Audio", "mp3"), ("MP4 Video", "mp4")]
+        for text, value in formats:
+            rb = tk.Radiobutton(format_frame, text=text, variable=self.format_type, 
+                               value=value, bg="#f0f0f0", command=self.update_quality_options)
             rb.pack(anchor="w")
+        
+        # Quality selection frame (dynamic)
+        self.quality_frame = tk.Frame(left_panel, bg="#f0f0f0")
+        self.quality_frame.pack(fill="x", pady=(0, 10))
+        
+        # Initialize quality options
+        self.update_quality_options()
         
         # Output folder
         tk.Label(left_panel, text="Save to:", bg="#f0f0f0", 
@@ -251,7 +316,7 @@ class YouTubeToMP3Converter:
                  bg="#4CAF50", fg="white").pack(side="right", padx=(5, 0))
         
         # Single download button
-        tk.Button(left_panel, text="Download MP3", command=self.start_single_download,
+        tk.Button(left_panel, text="Download", command=self.start_single_download,
                  bg="#2196F3", fg="white", font=("Arial", 11, "bold"),
                  height=2, width=20).pack(pady=20)
         
@@ -260,9 +325,22 @@ class YouTubeToMP3Converter:
                                    font=("Arial", 12, "bold"), bg="#f0f0f0", padx=10, pady=10)
         right_panel.pack(side="right", fill="both", expand=True, padx=(10, 0))
         
+        # Batch format selection
+        tk.Label(right_panel, text="Batch Format:", bg="#f0f0f0", 
+                font=("Arial", 10)).pack(anchor="w", pady=(0, 5))
+        
+        batch_format_frame = tk.Frame(right_panel, bg="#f0f0f0")
+        batch_format_frame.pack(fill="x", pady=(0, 5))
+        
+        self.batch_format = tk.StringVar(value="mp3")
+        for text, value in formats:
+            rb = tk.Radiobutton(batch_format_frame, text=text, variable=self.batch_format, 
+                               value=value, bg="#f0f0f0")
+            rb.pack(side="left", padx=(0, 10))
+        
         # Batch URL input
         tk.Label(right_panel, text="Enter URLs (one per line):", bg="#f0f0f0", 
-                font=("Arial", 10)).pack(anchor="w", pady=(0, 5))
+                font=("Arial", 10)).pack(anchor="w", pady=(10, 5))
         
         self.batch_text = scrolledtext.ScrolledText(right_panel, width=40, height=10,
                                                    font=("Courier", 9))
@@ -289,7 +367,7 @@ class YouTubeToMP3Converter:
         tk.Label(status_frame, text="Status:", bg="#f0f0f0", 
                 font=("Arial", 10, "bold")).pack(anchor="w", pady=(0, 5))
         
-        self.status_text = scrolledtext.ScrolledText(status_frame, height=6,
+        self.status_text = scrolledtext.ScrolledText(status_frame, height=8,
                                                     font=("Courier", 9))
         self.status_text.pack(fill="x")
         self.status_text.config(state="disabled")
@@ -298,6 +376,39 @@ class YouTubeToMP3Converter:
         self.progress = ttk.Progressbar(self.window, mode="indeterminate")
         self.progress.pack(fill="x", padx=20, pady=(0, 10))
         
+    def update_quality_options(self):
+        """Update quality options based on selected format"""
+        # Clear previous quality options
+        for widget in self.quality_frame.winfo_children():
+            widget.destroy()
+        
+        tk.Label(self.quality_frame, text="Quality:", bg="#f0f0f0", 
+                font=("Arial", 10)).pack(anchor="w", pady=(0, 5))
+        
+        if self.format_type.get() == "mp3":
+            # MP3 quality options
+            mp3_qualities = [("128 kbps (Small)", "128"), 
+                           ("192 kbps (Recommended)", "192"), 
+                           ("320 kbps (High Quality)", "320")]
+            
+            for text, value in mp3_qualities:
+                rb = tk.Radiobutton(self.quality_frame, text=text, 
+                                   variable=self.mp3_quality, value=value, bg="#f0f0f0")
+                rb.pack(anchor="w")
+                
+        else:  # MP4
+            # MP4 quality options
+            mp4_qualities = [("360p (Low)", "360p"),
+                           ("480p (Standard)", "480p"),
+                           ("720p (HD)", "720p"),
+                           ("1080p (Full HD)", "1080p"),
+                           ("Best Available", "best")]
+            
+            for text, value in mp4_qualities:
+                rb = tk.Radiobutton(self.quality_frame, text=text,
+                                   variable=self.mp4_quality, value=value, bg="#f0f0f0")
+                rb.pack(anchor="w")
+    
     def log_message(self, message, color="black"):
         """Add message to status text"""
         self.status_text.config(state="normal")
@@ -356,7 +467,8 @@ class YouTubeToMP3Converter:
     
     def download_single(self, url):
         try:
-            self.log_message(f"Starting download: {url[:50]}...", "blue")
+            format_type = self.format_type.get()
+            self.log_message(f"Starting {format_type.upper()} download: {url[:50]}...", "blue")
             
             # Get video info first
             info = get_video_info(url)
@@ -370,28 +482,41 @@ class YouTubeToMP3Converter:
                 title = info.get('title', 'Unknown Video')
                 self.log_message(f"Title: {title}", "green")
             
-            # Download - USING THE SIMPLE WORKING VERSION
-            result = youtube_to_mp3(
+            # Get quality based on format
+            if format_type == "mp3":
+                quality = self.mp3_quality.get()
+            else:
+                quality = self.mp4_quality.get()
+            
+            # Download
+            result = download_youtube(
                 url, 
                 self.output_folder.get(), 
-                self.quality.get()
+                format_type,
+                quality
             )
             
-            # SAFELY check result - result is ALWAYS a dict from our simple version
-            if result.get('success'):
+            # SAFELY check result
+            if isinstance(result, dict) and result.get('success'):
                 filename = result.get('filename', 'Unknown')
                 title = result.get('title', 'Unknown')
-                self.log_message(f"✓ Download complete: {filename}", "green")
+                format_used = result.get('format', 'Unknown')
+                quality_used = result.get('quality', 'Unknown')
+                
+                self.log_message(f"✓ {format_used} download complete: {filename}", "green")
+                self.log_message(f"  Quality: {quality_used}", "green")
                 
                 # Show success message
                 self.window.after(0, lambda: messagebox.showinfo(
                     "Success", 
                     f"Download complete!\n\n"
                     f"Title: {title}\n"
+                    f"Format: {format_used}\n"
+                    f"Quality: {quality_used}\n"
                     f"Saved to: {filename}"
                 ))
             else:
-                error_msg = result.get('error', 'Unknown error')
+                error_msg = result.get('error', 'Unknown error') if isinstance(result, dict) else str(result)
                 self.log_message(f"✗ Download failed: {error_msg}", "red")
                 
         except Exception as e:
@@ -431,22 +556,30 @@ class YouTubeToMP3Converter:
             messagebox.showerror("Error", "No valid URLs to download")
             return
         
+        # Get batch quality based on format
+        format_type = self.batch_format.get()
+        if format_type == "mp3":
+            quality = self.mp3_quality.get()
+        else:
+            quality = self.mp4_quality.get()
+        
         self.downloading = True
         self.progress.start()
         
         # Start batch download in thread
-        thread = threading.Thread(target=self.download_batch, args=(urls,))
+        thread = threading.Thread(target=self.download_batch, args=(urls, format_type, quality))
         thread.daemon = True
         thread.start()
     
-    def download_batch(self, urls):
+    def download_batch(self, urls, format_type, quality):
         try:
-            self.log_message(f"Starting batch download of {len(urls)} URLs...", "blue")
+            self.log_message(f"Starting batch download of {len(urls)} URLs as {format_type.upper()}...", "blue")
             
             results = batch_download(
                 urls, 
                 self.output_folder.get(), 
-                self.quality.get()
+                format_type,
+                quality
             )
             
             # Count successes
@@ -466,7 +599,9 @@ class YouTubeToMP3Converter:
             # Show summary
             self.window.after(0, lambda: messagebox.showinfo(
                 "Batch Complete",
-                f"Downloaded {successes} of {len(urls)} files\n\n"
+                f"Downloaded {successes} of {len(urls)} files\n"
+                f"Format: {format_type.upper()}\n"
+                f"Quality: {quality}\n\n"
                 f"Results saved to: batch_results.json"
             ))
             
@@ -484,21 +619,21 @@ class YouTubeToMP3Converter:
         self.status_text.tag_config("red", foreground="red")
         self.status_text.tag_config("orange", foreground="orange")
         
-        # Check for FFmpeg - IMPROVED VERSION
-        ffmpeg_path = r"C:\Users\User\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-essentials_build\bin\ffmpeg.exe"
-        
-        if os.path.exists(ffmpeg_path):
-            self.log_message(f"✓ FFmpeg found: {ffmpeg_path}", "green")
-        else:
-            self.log_message("✗ FFmpeg not found at expected location", "red")
-            self.log_message("Please ensure FFmpeg is installed", "red")
+        # Check for FFmpeg
+        try:
+            import subprocess
+            subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+            self.log_message("✓ FFmpeg found", "green")
+        except:
+            self.log_message("⚠ FFmpeg not found in PATH", "orange")
+            self.log_message("MP3 conversion requires FFmpeg", "orange")
+            self.log_message("MP4 downloads will still work", "blue")
         
         self.window.mainloop()
-    
 
 def main():
     """Main entry point"""
-    app = YouTubeToMP3Converter()
+    app = YouTubeConverter()
     app.run()
 
 if __name__ == "__main__":
